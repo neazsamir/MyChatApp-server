@@ -1,49 +1,63 @@
-import { Server } from 'socket.io'
-import express from 'express'
-import http from 'http'
+import { Server } from 'socket.io';
+import express from 'express';
+import http from 'http';
 
+const app = express();
+const server = http.createServer(app);
 
-const app = express()
-const server = http.createServer(app)
 const io = new Server(server, {
 	cors: {
-		origin: '*'
-	}
-})
+		origin: '*',
+		methods: ['GET', 'POST'],
+	},
+});
 
-const onlineUsers = new Map()
+const onlineUsers = new Map();
 
-io.on("connection", (socket) => {
-	socket.on("register", (userId) => {
-		onlineUsers.set(userId, socket.id)
-	})
+io.on('connection', (socket) => {
+	console.log(`🔌 New socket connected: ${socket.id}`);
 
-	socket.on("chat", (payload) => {
-		const { reciever, text, sender } = payload
-		const receiverSocket = onlineUsers.get(reciever)
-		console.log("Message sent")
+	// Register the user
+	socket.on('register', (userId) => {
+		if (!userId) return;
+		onlineUsers.set(userId.toString(), socket.id);
+		console.log(`✅ User registered: ${userId} with socket ${socket.id}`);
+		console.log('🟢 Online users:', Array.from(onlineUsers.entries()));
+	});
+
+	// Receive and forward a chat message
+	socket.on('chat', ({ reciever, sender, text }) => {
+		const receiverSocket = onlineUsers.get(reciever?.toString());
+		console.log(`📨 Message from ${sender} to ${reciever}: "${text}"`);
+		console.log('🟢 Online users:', Array.from(onlineUsers.entries()));
+
 		if (receiverSocket) {
-			console.log("Message recieved")
-			io.to(receiverSocket).emit("chat", { sender, text })
+			console.log(`📬 Sending message to socket ${receiverSocket}`);
+			io.to(receiverSocket).emit('chat', { sender, text });
+		} else {
+			console.log(`❌ Receiver ${reciever} is not online`);
 		}
-	})
-	
-	socket.on("seen", ({ sender, reciever }) => {
-	const receiverSocket = onlineUsers.get(sender)
-	if (receiverSocket) {
-		io.to(receiverSocket).emit("seen", { from: reciever })
-	}
-})
+	});
 
-	socket.on("disconnect", () => {
-		for (const [userId, sockId] of onlineUsers.entries()) {
-			if (sockId === socket.id) {
-				onlineUsers.delete(userId)
-				break
+	// Seen status handler
+	socket.on('seen', ({ sender, reciever }) => {
+		const receiverSocket = onlineUsers.get(sender?.toString());
+		if (receiverSocket) {
+			console.log(`👁️ Seen status from ${reciever} to ${sender}`);
+			io.to(receiverSocket).emit('seen', { from: reciever });
+		}
+	});
+
+	// Cleanup on disconnect
+	socket.on('disconnect', () => {
+		for (const [userId, socketId] of onlineUsers.entries()) {
+			if (socketId === socket.id) {
+				onlineUsers.delete(userId);
+				console.log(`❎ User ${userId} disconnected and removed from online list`);
+				break;
 			}
 		}
-	})
-})
+	});
+});
 
-
-export { app, server, io }
+export { app, server, io };
