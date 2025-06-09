@@ -21,8 +21,8 @@ export const register = async (req, res, next) => {
 		res.cookie('jwt', await newUser.generateToken(), {
 			maxAge: 7 * 24 * 60 * 60 * 1000,
 			httpOnly: true,
-			sameSite: 'strict',
-			secure: process.env.NODE_ENV === "production",
+			sameSite: 'none',
+			secure: true,
 			path: '/'
 		})
 		return res.status(201).json({ success: true, msg: "Account created", data: user })
@@ -47,7 +47,7 @@ export const login = async (req, res, next) => {
 				res.cookie('jwt', await user.generateToken(), {
 				maxAge: 7 * 24 * 60 * 60 * 1000,
 				httpOnly: true,
-				sameSite: 'strict',
+				sameSite: 'none',
 				secure: process.env.NODE_ENV === "production"
 				})
 				delete user.password
