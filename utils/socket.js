@@ -21,7 +21,9 @@ io.on("connection", (socket) => {
 	socket.on("chat", (payload) => {
 		const { reciever, text, sender } = payload
 		const receiverSocket = onlineUsers.get(reciever)
+		console.log("Message sent")
 		if (receiverSocket) {
+			console.log("Message recieved")
 			io.to(receiverSocket).emit("chat", { sender, text })
 		}
 	})
